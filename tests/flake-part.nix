@@ -35,7 +35,8 @@
   headingOrder = map (lib.removePrefix ";;;; ") (
     lib.filter (line: lib.hasPrefix ";;;; " line) (lib.splitString "\n" init)
   );
-  comesBefore = a: b: builtins.elemIndex a headingOrder < builtins.elemIndex b headingOrder;
+  indexOf = heading: builtins.length (lib.takeWhile (x: x != heading) headingOrder);
+  comesBefore = a: b: indexOf a < indexOf b;
 
   expectations = [
     # Feature files, imported from the directory.
@@ -58,8 +59,8 @@
     (expect "value from a helper file" (hasInfix "(setq test-helper \"from the helper\")" init))
 
     # Order.
-    (expect "order puts the prelude first" (comesBefore ";;;; prelude" ";;;; alpha"))
-    (expect "order puts the inline feature last" (comesBefore ";;;; alpha" ";;;; inline"))
+    (expect "order puts the prelude first" (comesBefore "prelude" "alpha"))
+    (expect "order puts the inline feature last" (comesBefore "alpha" "inline"))
 
     # Disabled features contribute nothing.
     (expect "disabled feature has no elisp" (!hasInfix "gamma must not appear" init))
