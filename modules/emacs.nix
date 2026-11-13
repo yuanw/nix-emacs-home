@@ -189,9 +189,12 @@ let
     }
   );
 
-  sortedEnabledFeatures = lib.sortOn (feature: {
-    inherit (feature) order name;
-  }) (lib.filter (feature: feature.enable) (lib.attrValues cfg.features));
+  sortedEnabledFeatures = lib.sortOn (
+    feature: [
+      feature.order
+      feature.name
+    ]
+  ) (lib.filter (feature: feature.enable) (lib.attrValues cfg.features));
 
   epkgsOf = scope: concatMap (feature: feature.epkgs scope) sortedEnabledFeatures;
 
