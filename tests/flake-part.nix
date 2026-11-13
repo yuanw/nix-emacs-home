@@ -56,6 +56,7 @@
     (expect "sibling .el file" (hasInfix "beta from file" init))
     (expect "elisp after sibling file" (elispComesBefore "beta from file" "beta inline"))
     (expect "feature heading" (hasInfix ";;;; alpha" init))
+    (expect "curried feature file" (hasInfix "(message \"curried feature curried with" init))
 
     # Elisp declared in Nix rather than in a file.
     (expect "inline feature" (hasInfix "(message \"inline feature\")" init))

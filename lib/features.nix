@@ -58,25 +58,39 @@ let
   # Feature files are called with the arguments they ask for, so that
   #
   #     { pkgs, myConfig, ... }: { epkgs = ...; }
+  #     { thisFeature }: { options, ... }: { order = thisFeature; }
   #
-  # works, and the result — plain data — can be handed to the feature submodule
-  # type (handing it a function would give `pkgs' the submodule's meaning).
+  # both work, and the result — plain data — can be handed to the feature
+  # submodule type (handing it a function would give `pkgs' the submodule's
+  # meaning).
   applyArgs =
     path: module: args:
-    if !isFunction module then
-      module
-    else
-      let
-        wanted = mapAttrs (_name: _hasDefault: true) (functionArgs module);
-        missing = subtractLists (attrNames args) (attrNames wanted);
-      in
-      if missing != [ ] then
-        throw ''
-          nix-emacs-home: the feature file ${path} takes the argument(s) ${lib.concatStringsSep ", " missing}, which are not available.
-          Available: ${lib.concatStringsSep ", " (attrNames args)}.
-        ''
-      else
-        module (intersectAttrs wanted args);
+    let
+      apply =
+        module:
+        let
+          wanted = mapAttrs (_name: _hasDefault: true) (functionArgs module);
+          missing = subtractLists (attrNames args) (attrNames wanted);
+        in
+        if missing != [ ] then
+          throw ''
+            nix-emacs-home: the feature file ${path} takes the argument(s) ${lib.concatStringsSep ", " missing}, which are not available.
+            Available: ${lib.concatStringsSep ", " (attrNames args)}.
+          ''
+        else
+          module (intersectAttrs wanted args);
+      # At most two rounds, for the curried `{ thisFeature }: { pkgs, ... }: ...'
+      # form; more than that is a file that does not return a feature.
+      go =
+        n: module:
+        if !isFunction module then
+          module
+        else if n >= 2 then
+          throw "nix-emacs-home: the feature file ${path} takes more than two rounds of arguments"
+        else
+          go (n + 1) (apply module);
+    in
+    go 0 module;
 
   # A feature file may only contain feature options.  Anything else is reported
   # as what it probably is: a typo, or a Home Manager module that belongs in
