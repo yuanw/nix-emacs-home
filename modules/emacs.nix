@@ -442,29 +442,32 @@ in
     };
   };
 
-  config = mkIf cfg.enable (lib.mkMerge [
-    {
-      assertions = [
-        {
-          assertion = cfg.package ? pkgs;
-          message = "nix-emacs-home: emacs.package must be an unwrapped Emacs (it needs a .pkgs attribute)";
-        }
-      ];
+  config = mkIf cfg.enable (lib.mkMerge (
+    [
+      {
+        assertions = [
+          {
+            assertion = cfg.package ? pkgs;
+            message = "nix-emacs-home: emacs.package must be an unwrapped Emacs (it needs a .pkgs attribute)";
+          }
+        ];
 
-      home.packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
+        home.packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
 
-      home.file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
-        ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
-      };
+        home.file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
+          ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
+        };
 
-      warnings = hmEmacsWarning;
-    }
+        warnings = hmEmacsWarning;
+      }
 
-    (mkIf cfg.service.enable {
-      services.emacs = {
-        enable = true;
-        package = cfg.finalPackage;
-      };
-    })
-  ] ++ featureDefinitions);
+      (mkIf cfg.service.enable {
+        services.emacs = {
+          enable = true;
+          package = cfg.finalPackage;
+        };
+      })
+    ]
+    ++ featureDefinitions
+  ));
 }
