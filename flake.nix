@@ -6,6 +6,8 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -17,9 +19,17 @@
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [ ./tests/flake-part.nix ];
+      imports = [
+        ./tests/flake-part.nix
+        ./dev/flake-part.nix
+      ];
 
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
       flake = {
         # Add to `home-manager.sharedModules' (or to any Home Manager module
@@ -34,15 +44,14 @@
       perSystem =
         { pkgs, ... }:
         let
-          exampleConfig = (
-            home-manager.lib.homeManagerConfiguration {
+          exampleConfig =
+            (home-manager.lib.homeManagerConfiguration {
               inherit pkgs;
               modules = [
                 self.hmModules.default
                 ./examples/simple
               ];
-            }
-          ).config;
+            }).config;
         in
         {
           # The Emacs package the example config builds.

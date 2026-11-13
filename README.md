@@ -172,6 +172,17 @@ The `tests` check evaluates a Home Manager configuration built from
 messages.  `nix build .#emacs` builds the example in `examples/simple`, which is
 what exercises the overlay and package wiring and byte-compiles the result.
 
+## Hacking
+
+```
+nix develop       # treefmt, git, gh, nix-tree
+treefmt .         # format every file — Nix only, for now
+nix flake check   # eval tests, example build, and formatting
+```
+
+`flake.checks.treefmt` runs `treefmt --fail-on-change` on the project root, so
+unformatted Nix fails the check; `nix fmt` uses the same treefmt config.
+
 ## Related work
 
 - [nima](https://github.com/jian-lin/nima) — the same idea as a Nixpkgs

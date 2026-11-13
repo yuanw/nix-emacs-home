@@ -19,7 +19,11 @@ in
     };
   };
   setq = {
-    test-alpha-list = [ 1 "two" true ];
+    test-alpha-list = [
+      1
+      "two"
+      true
+    ];
     test-helper = helper.helper-value;
   };
   setopt = {

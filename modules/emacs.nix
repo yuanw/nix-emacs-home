@@ -12,7 +12,13 @@
 #   * Early configuration is written to `early-init.el` in the home directory
 #     rather than being packaged, because the `early-default.el` equivalent is
 #     only available in very recent Emacsen.
-{ config, lib, pkgs, options, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  options,
+  ...
+}:
 
 let
   inherit (lib)
@@ -47,7 +53,8 @@ let
     description = "function taking the Emacs package set and returning a list of packages";
     check = isFunction;
     merge =
-      _loc: defs: epkgs: concatMap (select: select epkgs) (getValues defs);
+      _loc: defs: epkgs:
+      concatMap (select: select epkgs) (getValues defs);
   };
 
   overlayFunction = mkOptionType {
@@ -57,17 +64,19 @@ let
     merge = _loc: defs: composeManyExtensions (getValues defs);
   };
 
-  variablesOption = description: mkOption {
-    type = types.attrsOf types.anything;
-    default = { };
-    example = literalExpression ''
-      {
-        font-height = 180;
-        frame-title-format = "'(\"%b\")";
-      }
-    '';
-    inherit description;
-  };
+  variablesOption =
+    description:
+    mkOption {
+      type = types.attrsOf types.anything;
+      default = { };
+      example = literalExpression ''
+        {
+          font-height = 180;
+          frame-title-format = "'(\"%b\")";
+        }
+      '';
+      inherit description;
+    };
 
   featureModule = types.submodule (
     { name, ... }:
@@ -189,12 +198,10 @@ let
     }
   );
 
-  sortedEnabledFeatures = lib.sortOn (
-    feature: [
-      feature.order
-      feature.name
-    ]
-  ) (lib.filter (feature: feature.enable) (lib.attrValues cfg.features));
+  sortedEnabledFeatures = lib.sortOn (feature: [
+    feature.order
+    feature.name
+  ]) (lib.filter (feature: feature.enable) (lib.attrValues cfg.features));
 
   epkgsOf = scope: concatMap (feature: feature.epkgs scope) sortedEnabledFeatures;
 
@@ -213,35 +220,30 @@ let
       # `pname' (`pName' in recent nixpkgs); the generated `default' package is
       # the init file itself, so it is not required.
       nameOf = package: package.pName or package.pname or "";
-      names = lib.unique (lib.filter (name: name != "" && name != "default") (map nameOf (epkgsOf emacsScope)));
+      names = lib.unique (
+        lib.filter (name: name != "" && name != "default") (map nameOf (epkgsOf emacsScope))
+      );
     in
-    map
-      (name:
-        ''
-          ;; `ignore-errors': not every package ships an autoloads file.
-          (ignore-errors (load "${name}-autoloads" nil t))
-          (require '${name} nil t)''
-      )
-      names;
+    map (name: ''
+      ;; `ignore-errors': not every package ships an autoloads file.
+      (ignore-errors (load "${name}-autoloads" nil t))
+      (require '${name} nil t)'') names;
 
   # The generated init file travels as a package called `default', which is
   # what makes Emacs load it (see the note at the top of this file).
-  initOverlay =
-    _final: _prev: {
-      default = _final.trivialBuild {
-        pname = "default";
-        version = "0.1.0";
-        src = cfg.initFile;
-        packageRequires = epkgsOf _final;
-        turnCompilationWarningToError = cfg.pedantic;
-      };
+  initOverlay = _final: _prev: {
+    default = _final.trivialBuild {
+      pname = "default";
+      version = "0.1.0";
+      src = cfg.initFile;
+      packageRequires = epkgsOf _final;
+      turnCompilationWarningToError = cfg.pedantic;
     };
+  };
 
   emacsScope = cfg.package.pkgs.overrideScope (
     composeManyExtensions (
-      [ cfg.overlay ]
-      ++ map (feature: feature.overlay) sortedEnabledFeatures
-      ++ [ initOverlay ]
+      [ cfg.overlay ] ++ map (feature: feature.overlay) sortedEnabledFeatures ++ [ initOverlay ]
     )
   );
 
@@ -249,9 +251,7 @@ let
     lib.throwIf (cfg.package ? explicitRequires && cfg.package ? deps)
       "nix-emacs-home: emacs.package must be an unwrapped Emacs such as pkgs.emacs or pkgs.emacs-git, not one already configured with withPackages"
       (
-        emacsScope.withPackages (
-          epkgs: (epkgsOf epkgs) ++ optional (cfg.initContent != "") epkgs.default
-        )
+        emacsScope.withPackages (epkgs: (epkgsOf epkgs) ++ optional (cfg.initContent != "") epkgs.default)
       );
 
   # `;;;; name' headings make the generated file navigable with outline-minor-mode.
@@ -322,13 +322,15 @@ let
 
   # `programs.emacs' wraps Emacs itself and generates its own init file, which
   # would fight with the package built here.
-  hmEmacsWarning = lib.optionals (options.programs.emacs or { } != { } && config.programs.emacs.enable) [
-    ''
-      nix-emacs-home: both `emacs.enable' and `programs.emacs.enable' are on.
-      Disable `programs.emacs', it wraps Emacs a second time and writes its own
-      init file.
-    ''
-  ];
+  hmEmacsWarning =
+    lib.optionals (options.programs.emacs or { } != { } && config.programs.emacs.enable)
+      [
+        ''
+          nix-emacs-home: both `emacs.enable' and `programs.emacs.enable' are on.
+          Disable `programs.emacs', it wraps Emacs a second time and writes its own
+          init file.
+        ''
+      ];
 
   # Feature files are called with these, so they see the same arguments as any
   # other Home Manager module plus whatever `_module.args' provides -- that is
@@ -347,7 +349,9 @@ let
   # those exist.  This stays a thunk until `emacs.features' is asked for;
   # applying a file reads `config', which a module must not do while the spine
   # of its own config is being built.
-  collectedFeatures = featureLib.collectFeatures featureArgs (concatMap featureLib.collect cfg.featureDirs);
+  collectedFeatures = featureLib.collectFeatures featureArgs (
+    concatMap featureLib.collect cfg.featureDirs
+  );
 in
 {
   options.emacs = {

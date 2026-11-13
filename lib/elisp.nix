@@ -34,7 +34,8 @@ let
   #
   # A literal string that happens to start with one of these characters can be
   # protected with the `raw' escape hatch below.
-  looksLikeElisp = value: lib.hasPrefix "'" value || lib.hasPrefix "#'" value || lib.hasPrefix "(" value;
+  looksLikeElisp =
+    value: lib.hasPrefix "'" value || lib.hasPrefix "#'" value || lib.hasPrefix "(" value;
 
   # Values of `defvar'/`setq'/`setopt' are Nix values; a set becomes an
   # alist, which is the shape most Elisp options take.
@@ -78,10 +79,7 @@ let
     name: valueOrAttrs:
     let
       attrs =
-        if isAttrs valueOrAttrs && valueOrAttrs ? value then
-          valueOrAttrs
-        else
-          { value = valueOrAttrs; };
+        if isAttrs valueOrAttrs && valueOrAttrs ? value then valueOrAttrs else { value = valueOrAttrs; };
       doc = lib.optionalString (attrs ? doc) " ${toElispValue attrs.doc}";
     in
     "(defvar ${name} ${toElispValue attrs.value}${doc})";

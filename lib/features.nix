@@ -95,7 +95,8 @@ let
   # A feature file may only contain feature options.  Anything else is reported
   # as what it probably is: a typo, or a Home Manager module that belongs in
   # `imports' rather than in a feature directory.
-  checkFile = path: module:
+  checkFile =
+    path: module:
     let
       keys = attrNames module;
       unknownKeys = lib.filter (name: !elem name featureOptionNames) keys;
@@ -104,7 +105,19 @@ let
       throw "nix-emacs-home: the feature file ${path} must be an attribute set or a function returning one"
     else if keys == [ ] || unknownKeys == [ ] then
       module
-    else if (lib.filter (name: elem name [ "options" "config" "imports" ]) keys) != [ ] || module ? home || module ? systemd || module ? xdg then
+    else if
+      (lib.filter (
+        name:
+        elem name [
+          "options"
+          "config"
+          "imports"
+        ]
+      ) keys) != [ ]
+      || module ? home
+      || module ? systemd
+      || module ? xdg
+    then
       throw ''
         nix-emacs-home: the file ${path} is a Home Manager module, not a feature.
         Unknown attributes: ${lib.concatStringsSep ", " unknownKeys}.
@@ -113,15 +126,14 @@ let
       ''
     else
       throw ''
-        nix-emacs-home: the feature file ${path} has unknown attributes: ${
-          lib.concatStringsSep ", " unknownKeys
-        }.
+        nix-emacs-home: the feature file ${path} has unknown attributes: ${lib.concatStringsSep ", " unknownKeys}.
         A feature file contains only ${lib.concatStringsSep ", " featureOptionNames}.
       '';
 
   # One feature: named after the file, with the sibling `.el' as its default
   # `elispFile' (an explicit `elispFile' in the file wins).
-  applyFile = args: path:
+  applyFile =
+    args: path:
     let
       name = featureName path;
       module = checkFile path (applyArgs path (import path) (args // { thisFeature = name; }));
@@ -129,9 +141,11 @@ let
     in
     {
       inherit name;
-      value = lib.optionalAttrs (builtins.pathExists sibling) {
-        elispFile = lib.mkDefault sibling;
-      } // module;
+      value =
+        lib.optionalAttrs (builtins.pathExists sibling) {
+          elispFile = lib.mkDefault sibling;
+        }
+        // module;
     };
 
   # The features of the given files, as the value of `emacs.features'.
@@ -141,11 +155,14 @@ let
   # the module arguments exist.  The result must stay behind a thunk in the
   # config: applying a file reads `config', and a module that reads `config'
   # while the spine of its own config is being built cannot terminate.
-  collectFeatures = args: paths:
+  collectFeatures =
+    args: paths:
     let
       entries = map (applyFile args) paths;
     in
-    if builtins.length entries != builtins.length (builtins.attrNames (builtins.listToAttrs entries)) then
+    if
+      builtins.length entries != builtins.length (builtins.attrNames (builtins.listToAttrs entries))
+    then
       throw "nix-emacs-home: two feature files have the same name: ${
         lib.concatStringsSep ", " (map (e: e.name) entries)
       }"
