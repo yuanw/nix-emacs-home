@@ -3,14 +3,9 @@
 # module generates is a plain string option, so this needs no Emacs build;
 # `nix flake check' also builds ../examples/simple through packages.emacs, which
 # is what proves the package/overlay wiring.
-{
-  lib,
-  pkgs,
-  self,
-  inputs,
-  ...
-}:
-let
+{ inputs, lib, ... }:
+
+{ perSystem = { pkgs, self, ... }: let
   inherit (lib.strings) hasInfix;
   inherit (lib) concatStringsSep;
 
@@ -97,15 +92,14 @@ let
   '' "all checks passed";
 in
 {
-  perSystem = _: {
-    checks.tests = pkgs.runCommand "nix-emacs-home-tests"
-      {
-        # Forcing this string is what runs the checks above.
-        result = assertion;
-      }
-      ''
-        test -s ${cfg.emacs.initFile}
-        echo '${assertion}' > $out
-      '';
-  };
+  checks.tests = pkgs.runCommand "nix-emacs-home-tests"
+    {
+      # Forcing this string is what runs the checks above.
+      result = assertion;
+    }
+    ''
+      test -s ${cfg.emacs.initFile}
+      echo '${assertion}' > $out
+    '';
+};
 }
