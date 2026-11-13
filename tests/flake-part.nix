@@ -23,7 +23,7 @@
   # A feature file that mixes feature options with Home Manager options is a
   # mistake, and must be reported as one.
   mixedIsRejected = !(builtins.tryEval (
-    featureLib.mkDefinitions { } [ ./bad-features/mixed.nix ]
+    featureLib.collectDefinitions { } [ ./bad-features/mixed.nix ]
   )).success;
 
   expect = name: condition: {

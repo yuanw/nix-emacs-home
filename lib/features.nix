@@ -103,21 +103,16 @@ let
         }.
         Add it to your Home Manager imports instead of putting it in a feature directory.
       ''
-    else if keys == [ ] || otherKeys == [ ] then
-      "feature"
     else if featureKeys == [ ] then
       "plain"
+    else if otherKeys == [ ] || keys == [ ] then
+      "feature"
     else
       throw "nix-emacs-home: the feature file ${path} mixes feature options (${
         lib.concatStringsSep ", " featureKeys
       }) with Home Manager options (${lib.concatStringsSep ", " otherKeys})";
 
-  # Feature files turn into option definitions, not imported modules: applying a
-  # feature file needs the module arguments, and `imports' is forced before the
-  # module arguments exist.
-  mkDefinitions = args: paths: map (mkDefinition args) paths;
-
-  mkDefinition = args: path:
+  applyFile = args: path:
     let
       name = featureName path;
       module = applyArgs path (import path) (args // { thisFeature = name; });
@@ -126,16 +121,54 @@ let
       defaultElispFile = lib.optionalAttrs (builtins.pathExists sibling) {
         elispFile = lib.mkDefault sibling;
       };
+      kind = classify path module;
     in
-    if classify path module == "feature" then
-      {
-        _file = toString path;
-        emacs.features.${name} = defaultElispFile // module;
-      }
+    if kind == "plain" && module ? emacs then
+      throw ''
+        nix-emacs-home: the file ${path} is a Home Manager module that defines `emacs' options.
+        A plain module in a feature directory may define anything but `emacs' options;
+        add this file to your Home Manager imports instead.
+      ''
     else
-      module;
+      {
+        inherit
+          kind
+          name
+          path
+        ;
+        module = if kind == "feature" then defaultElispFile // module else module;
+      };
+
+  # Feature files become option definitions, not imported modules: applying a
+  # feature file needs the module arguments, and `imports' is forced before the
+  # module arguments exist.
+  #
+  # Feature definitions and plain-module definitions come out separately so the
+  # caller can keep the spine of `config.emacs' lazy -- asking for any `emacs.*'
+  # option must not force the feature files, or the module that reads its own
+  # options would not terminate.
+  collectDefinitions = args: paths:
+    let
+      entries = map (applyFile args) paths;
+      featureEntries = lib.filter (e: e.kind == "feature") entries;
+      features = lib.listToAttrs (
+        map (e: { inherit (e) name; value = e.module; }) featureEntries
+      );
+      plainModules = map (e: e.module) (lib.filter (e: e.kind == "plain") entries);
+    in
+    if builtins.length featureEntries != builtins.attrLength features then
+      throw "nix-emacs-home: two feature files have the same name (features: ${
+        lib.concatStringsSep ", " (map (e: e.name) featureEntries)
+      })"
+    else
+      {
+        inherit
+          features
+          plainModules
+        ;
+      };
 
 in
 {
-  inherit collect featureOptionNames mkDefinitions;
+  inherit collect featureOptionNames collectDefinitions;
 }

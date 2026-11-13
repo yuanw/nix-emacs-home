@@ -310,9 +310,17 @@ let
   # Feature files become option definitions here rather than imported modules:
   # reading a feature file needs the module arguments, and `imports' is forced
   # before those exist (a module cannot look at `config' in its `imports').
-  featureDefinitions =
-    featureLib.mkDefinitions featureArgs
+  collectedFeatures =
+    featureLib.collectDefinitions featureArgs
       (concatMap featureLib.collect cfg.featureDirs);
+
+  # A plain Home Manager module in a feature directory defines Home Manager
+  # options, so it is gated per option namespace rather than at the root of the
+  # config: the spine of `config.emacs' has to stay cheap to walk.
+  plainFeatureModules =
+    map
+      (defs: lib.mapAttrs (_namespace: value: mkIf cfg.enable value) defs)
+      collectedFeatures.plainModules;
 in
 {
   options.emacs = {
@@ -442,9 +450,28 @@ in
     };
   };
 
-  config = mkIf cfg.enable (lib.mkMerge (
+  config = lib.mkMerge (
     [
       {
+        # `mkIf' one level below `emacs', never at the root of the config: a
+        # module that forces `config.emacs.enable' while defining `emacs.*'
+        # options cannot terminate, and asking for any `emacs.*' option would
+        # force the feature files.
+        emacs.features = mkIf cfg.enable collectedFeatures.features;
+
+        home = mkIf cfg.enable {
+          packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
+
+          file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
+            ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
+          };
+        };
+
+        services.emacs = mkIf cfg.service.enable {
+          enable = true;
+          package = cfg.finalPackage;
+        };
+
         assertions = [
           {
             assertion = cfg.package ? pkgs;
@@ -452,22 +479,10 @@ in
           }
         ];
 
-        home.packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
-
-        home.file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
-          ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
-        };
-
         warnings = hmEmacsWarning;
       }
-
-      (mkIf cfg.service.enable {
-        services.emacs = {
-          enable = true;
-          package = cfg.finalPackage;
-        };
-      })
     ]
-    ++ featureDefinitions
-  ));
+    ++ plainFeatureModules
+  );
+}
 }
