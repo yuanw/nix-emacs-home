@@ -35,8 +35,13 @@
   headingOrder = map (lib.removePrefix ";;;; ") (
     lib.filter (line: lib.hasPrefix ";;;; " line) (lib.splitString "\n" init)
   );
-  indexOf = heading: builtins.length (lib.takeWhile (x: x != heading) headingOrder);
-  comesBefore = a: b: indexOf a < indexOf b;
+  headingPosition = builtins.listToAttrs (
+    lib.imap0 (i: heading: {
+      name = heading;
+      value = i;
+    }) headingOrder
+  );
+  comesBefore = a: b: headingPosition.${a} < headingPosition.${b};
 
   expectations = [
     # Feature files, imported from the directory.
