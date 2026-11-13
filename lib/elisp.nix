@@ -66,14 +66,14 @@ let
     else
       throw "nix-emacs-home: cannot convert a value of type ${builtins.typeOf value} to Emacs Lisp";
 
-  # (defvar NAME VALUE), (setq NAME VALUE), (setopt 'NAME VALUE).
+  # (defvar NAME VALUE), (setq NAME VALUE), (setopt NAME VALUE).
   #
   # `setopt' is the one to use for `defcustom's: unlike `setq' it runs the
-  # option's :set function.  Note the quote before the name, `setopt' takes
-  # quoted symbols.
+  # option's :set function.  It takes the variable unquoted (a quoted name is
+  # passed on to `custom-set-primitive-variable', which rejects it).
   defvarForm = name: value: "(defvar ${name} ${toElispValue value})";
   setqForm = name: value: "(setq ${name} ${toElispValue value})";
-  setoptForm = name: value: "(setopt '${name} ${toElispValue value})";
+  setoptForm = name: value: "(setopt ${name} ${toElispValue value})";
 
   forms = form: attrs: concatStringsSep "\n" (mapAttrsToList form attrs);
 

@@ -63,8 +63,8 @@
     # Nix values as Emacs variables.
     (expect "defvar with feature name" (hasInfix "(defvar test-alpha-var \"alpha\")" init))
     (expect "setq list" (hasInfix "(setq test-alpha-list '(1 \"two\" t))" init))
-    (expect "setopt runs :set" (hasInfix "(setopt 'test-alpha-option t)" init))
-    (expect "setopt symbol" (hasInfix "(setopt 'test-alpha-symbol 'some-symbol)" init))
+    (expect "setopt runs :set" (hasInfix "(setopt test-alpha-option t)" init))
+    (expect "setopt symbol" (hasInfix "(setopt test-alpha-symbol 'some-symbol)" init))
     (expect "value from _module.args" (hasInfix "(setq test-injected \"injected-value\")" init))
     (expect "value from a helper file" (hasInfix "(setq test-helper \"from the helper\")" init))
 
