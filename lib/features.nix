@@ -1,17 +1,13 @@
-# Turn a directory of feature files into Home Manager modules.
+# Turn a directory of feature files into the value of `emacs.features'.
 #
 # A feature file is any `*.nix' file in a feature directory whose name does not
 # start with `_'; the feature name is the file name without `.nix'.  Files
 # starting with `_' are left alone so shared helpers can sit next to features.
 #
-# Two shapes are accepted, see the README:
-#
-#   * a feature file, whose attributes are all feature options (`epkgs',
-#     `elisp', `packages', ...) — it becomes `emacs.features.<name>';
-#   * a plain Home Manager module, imported unchanged, so a feature file can
-#     also reach for `home.file' or declare its own options.
-#
-# A feature file whose sibling `<name>.el' exists uses it as `elispFile'.
+# A feature file contains only feature options (`epkgs', `elisp', `packages',
+# ...), optionally as a function of the module arguments it asks for.  A file
+# whose sibling `<name>.el' exists uses it as `elispFile'.  Anything that is not
+# a feature belongs in Home Manager's `imports', not in a feature directory.
 { lib }:
 
 let
@@ -82,93 +78,67 @@ let
       else
         module (intersectAttrs wanted args);
 
-  # "feature" when every attribute is a feature option, "plain" when the file
-  # defines Home Manager options instead.  Mixing the two in one file is almost
-  # always a typo, so it is an error rather than a silent "plain module" full of
-  # unknown options.
-  classify = path: module:
+  # A feature file may only contain feature options.  Anything else is reported
+  # as what it probably is: a typo, or a Home Manager module that belongs in
+  # `imports' rather than in a feature directory.
+  checkFile = path: module:
     let
       keys = attrNames module;
-      featureKeys = lib.filter (name: elem name featureOptionNames) keys;
-      otherKeys = lib.filter (name: !elem name featureOptionNames) keys;
+      unknownKeys = lib.filter (name: !elem name featureOptionNames) keys;
     in
     if !isAttrs module then
       throw "nix-emacs-home: the feature file ${path} must be an attribute set or a function returning one"
-    else if module ? options || module ? config || module ? imports then
+    else if keys == [ ] || unknownKeys == [ ] then
+      module
+    else if (lib.filter (name: elem name [ "options" "config" "imports" ]) keys) != [ ] || module ? home || module ? systemd || module ? xdg then
       throw ''
-        nix-emacs-home: the file ${path} is a Home Manager module, not a feature: it declares ${
-          lib.concatStringsSep ", " (
-            lib.filter (name: elem name [ "options" "config" "imports" ]) keys
-          )
-        }.
-        Add it to your Home Manager imports instead of putting it in a feature directory.
+        nix-emacs-home: the file ${path} is a Home Manager module, not a feature.
+        Unknown attributes: ${lib.concatStringsSep ", " unknownKeys}.
+        A feature file contains only ${lib.concatStringsSep ", " featureOptionNames};
+        move this file out of the feature directory and add it to your Home Manager imports.
       ''
-    else if featureKeys == [ ] then
-      "plain"
-    else if otherKeys == [ ] || keys == [ ] then
-      "feature"
     else
-      throw "nix-emacs-home: the feature file ${path} mixes feature options (${
-        lib.concatStringsSep ", " featureKeys
-      }) with Home Manager options (${lib.concatStringsSep ", " otherKeys})";
+      throw ''
+        nix-emacs-home: the feature file ${path} has unknown attributes: ${
+          lib.concatStringsSep ", " unknownKeys
+        }.
+        A feature file contains only ${lib.concatStringsSep ", " featureOptionNames}.
+      '';
 
+  # One feature: named after the file, with the sibling `.el' as its default
+  # `elispFile' (an explicit `elispFile' in the file wins).
   applyFile = args: path:
     let
       name = featureName path;
-      module = applyArgs path (import path) (args // { thisFeature = name; });
+      module = checkFile path (applyArgs path (import path) (args // { thisFeature = name; }));
       sibling = elispSibling path;
-      # Explicit `elispFile' in the file wins over the sibling.
-      defaultElispFile = lib.optionalAttrs (builtins.pathExists sibling) {
-        elispFile = lib.mkDefault sibling;
-      };
-      kind = classify path module;
     in
-    if kind == "plain" && module ? emacs then
-      throw ''
-        nix-emacs-home: the file ${path} is a Home Manager module that defines `emacs' options.
-        A plain module in a feature directory may define anything but `emacs' options;
-        add this file to your Home Manager imports instead.
-      ''
-    else
-      {
-        inherit
-          kind
-          name
-          path
-        ;
-        module = if kind == "feature" then defaultElispFile // module else module;
-      };
+    {
+      inherit name;
+      value = lib.optionalAttrs (builtins.pathExists sibling) {
+        elispFile = lib.mkDefault sibling;
+      } // module;
+    };
 
-  # Feature files become option definitions, not imported modules: applying a
-  # feature file needs the module arguments, and `imports' is forced before the
-  # module arguments exist.
+  # The features of the given files, as the value of `emacs.features'.
   #
-  # Feature definitions and plain-module definitions come out separately so the
-  # caller can keep the spine of `config.emacs' lazy -- asking for any `emacs.*'
-  # option must not force the feature files, or the module that reads its own
-  # options would not terminate.
-  collectDefinitions = args: paths:
+  # Feature files become option definitions rather than imported modules:
+  # applying a file needs the module arguments, and `imports' is forced before
+  # the module arguments exist.  The result must stay behind a thunk in the
+  # config: applying a file reads `config', and a module that reads `config'
+  # while the spine of its own config is being built cannot terminate.
+  collectFeatures = args: paths:
     let
       entries = map (applyFile args) paths;
-      featureEntries = lib.filter (e: e.kind == "feature") entries;
-      features = lib.listToAttrs (
-        map (e: { inherit (e) name; value = e.module; }) featureEntries
-      );
-      plainModules = map (e: e.module) (lib.filter (e: e.kind == "plain") entries);
     in
-    if builtins.length featureEntries != builtins.attrLength features then
-      throw "nix-emacs-home: two feature files have the same name (features: ${
-        lib.concatStringsSep ", " (map (e: e.name) featureEntries)
-      })"
+    if builtins.length entries != builtins.attrLength (lib.listToAttrs entries) then
+      throw "nix-emacs-home: two feature files have the same name: ${
+        lib.concatStringsSep ", " (map (e: e.name) entries)
+      }"
     else
-      {
-        inherit
-          features
-          plainModules
-        ;
-      };
+      lib.listToAttrs entries;
 
 in
 {
-  inherit collect featureOptionNames collectDefinitions;
+  inherit collect featureOptionNames collectFeatures;
 }

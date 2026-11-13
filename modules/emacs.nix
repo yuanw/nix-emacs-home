@@ -307,20 +307,12 @@ let
       ;
   };
 
-  # Feature files become option definitions here rather than imported modules:
-  # reading a feature file needs the module arguments, and `imports' is forced
-  # before those exist (a module cannot look at `config' in its `imports').
-  collectedFeatures =
-    featureLib.collectDefinitions featureArgs
-      (concatMap featureLib.collect cfg.featureDirs);
-
-  # A plain Home Manager module in a feature directory defines Home Manager
-  # options, so it is gated per option namespace rather than at the root of the
-  # config: the spine of `config.emacs' has to stay cheap to walk.
-  plainFeatureModules =
-    map
-      (defs: lib.mapAttrs (_namespace: value: mkIf cfg.enable value) defs)
-      collectedFeatures.plainModules;
+  # Feature files become option definitions rather than imported modules:
+  # applying a file needs the module arguments, and `imports' is forced before
+  # those exist.  This stays a thunk until `emacs.features' is asked for;
+  # applying a file reads `config', which a module must not do while the spine
+  # of its own config is being built.
+  collectedFeatures = featureLib.collectFeatures featureArgs (concatMap featureLib.collect cfg.featureDirs);
 in
 {
   options.emacs = {
@@ -368,13 +360,14 @@ in
       example = literalExpression "[ ./features ]";
       description = ''
         Directories of feature files to import.  Each `.nix' file that does not
-        start with `_' becomes a feature named after the file; `_'-prefixed
-        files are left alone so shared helpers can live in the same directory.
+        start with `_' becomes a feature named after the file, containing only
+        feature options; `_'-prefixed files are left alone so shared helpers can
+        live in the same directory.
 
-        A file whose attributes are all feature options becomes
-        `emacs.features.<name>'.  Any other file is imported as a plain Home
-        Manager module, which lets a feature file also write `home.file' or
-        declare options of its own.
+        A file with a sibling `.el' of the same name gets that file as its
+        `elispFile'.  Anything that is not a feature (a Home Manager module
+        declaring options, writing `home.file', ...) belongs in Home Manager's
+        `imports', not here.
       '';
     };
 
@@ -450,38 +443,33 @@ in
     };
   };
 
-  config = lib.mkMerge (
-    [
+  config = {
+    # `mkIf' one level below `emacs', never at the root of the config: a module
+    # that forces `config.emacs.enable' while defining `emacs.*' options cannot
+    # terminate, and asking for any `emacs.*' option would force the feature
+    # files.
+    emacs.features = mkIf cfg.enable collectedFeatures;
+
+    home = mkIf cfg.enable {
+      packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
+
+      file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
+        ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
+      };
+    };
+
+    services.emacs = mkIf cfg.service.enable {
+      enable = true;
+      package = cfg.finalPackage;
+    };
+
+    assertions = [
       {
-        # `mkIf' one level below `emacs', never at the root of the config: a
-        # module that forces `config.emacs.enable' while defining `emacs.*'
-        # options cannot terminate, and asking for any `emacs.*' option would
-        # force the feature files.
-        emacs.features = mkIf cfg.enable collectedFeatures.features;
-
-        home = mkIf cfg.enable {
-          packages = [ cfg.finalPackage ] ++ concatMap (feature: feature.packages) sortedEnabledFeatures;
-
-          file = optionalAttrs (cfg.earlyInitFile != null && earlyContent != "") {
-            ${cfg.earlyInitFile}.source = pkgs.writeText "early-init.el" earlyContent;
-          };
-        };
-
-        services.emacs = mkIf cfg.service.enable {
-          enable = true;
-          package = cfg.finalPackage;
-        };
-
-        assertions = [
-          {
-            assertion = cfg.package ? pkgs;
-            message = "nix-emacs-home: emacs.package must be an unwrapped Emacs (it needs a .pkgs attribute)";
-          }
-        ];
-
-        warnings = hmEmacsWarning;
+        assertion = cfg.package ? pkgs;
+        message = "nix-emacs-home: emacs.package must be an unwrapped Emacs (it needs a .pkgs attribute)";
       }
-    ]
-    ++ plainFeatureModules
-  );
+    ];
+
+    warnings = hmEmacsWarning;
+  };
 }

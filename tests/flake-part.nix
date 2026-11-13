@@ -23,7 +23,7 @@
   # A feature file that mixes feature options with Home Manager options is a
   # mistake, and must be reported as one.
   mixedIsRejected = !(builtins.tryEval (
-    featureLib.collectDefinitions { } [ ./bad-features/mixed.nix ]
+    featureLib.collectFeatures { } [ ./bad-features/mixed.nix ]
   )).success;
 
   expect = name: condition: {
@@ -72,8 +72,8 @@
     (expect "disabled feature package absent" (!lib.any (p: p == pkgs.ripgrep) cfg.home.packages))
     (expect "emacs is installed" (lib.any (p: p == cfg.emacs.finalPackage) cfg.home.packages))
 
-    # Plain Home Manager modules are allowed in a feature directory.
-    (expect "plain module in features dir" (cfg.home.sessionVariables.TEST_FROM_PLAIN_MODULE == "yes"))
+    # A Home Manager module in a feature directory is rejected, see
+    # bad-features/mixed.nix below.
 
     # Early init.
     (expect "early defvar" (hasInfix "(defvar test-early-var 42)" early))
