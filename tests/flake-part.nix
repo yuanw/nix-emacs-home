@@ -5,13 +5,13 @@
 # is what proves the package/overlay wiring.
 { inputs, lib, ... }:
 
-{ perSystem = { pkgs, self, ... }: let
+{ perSystem = { pkgs, ... }: let
   inherit (lib.strings) hasInfix;
   inherit (lib) concatStringsSep;
 
   evalConfig = modules: (inputs.home-manager.lib.homeManagerConfiguration {
     inherit pkgs;
-    modules = [ self.hmModules.default ] ++ modules;
+    modules = [ inputs.self.hmModules.default ] ++ modules;
   }).config;
 
   cfg = evalConfig [ ./config.nix ];
