@@ -131,12 +131,12 @@ let
     let
       entries = map (applyFile args) paths;
     in
-    if builtins.length entries != builtins.attrLength (lib.listToAttrs entries) then
+    if builtins.length entries != builtins.attrLength (builtins.listToAttrs entries) then
       throw "nix-emacs-home: two feature files have the same name: ${
         lib.concatStringsSep ", " (map (e: e.name) entries)
       }"
     else
-      lib.listToAttrs entries;
+      builtins.listToAttrs entries;
 
 in
 {
