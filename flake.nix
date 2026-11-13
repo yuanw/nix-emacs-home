@@ -33,16 +33,23 @@
 
       perSystem =
         { pkgs, ... }:
-        {
-          # The Emacs package the example config builds; `nix build .#emacs'.
-          packages.emacs =
-            (home-manager.lib.homeManagerConfiguration {
+        let
+          exampleConfig = (
+            home-manager.lib.homeManagerConfiguration {
               inherit pkgs;
               modules = [
                 self.hmModules.default
                 ./examples/simple
               ];
-            }).config.emacs.finalPackage;
+            }
+          ).config;
+        in
+        {
+          # The Emacs package the example config builds.
+          packages.emacs = exampleConfig.emacs.finalPackage;
+
+          # The files it generates, for `nix build .#initFile && cat result`.
+          packages.initFile = exampleConfig.emacs.initFile;
         };
     };
 }
