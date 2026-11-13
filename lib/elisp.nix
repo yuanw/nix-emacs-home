@@ -83,11 +83,12 @@ let
   # feature's config, are ignored).
   variables =
     attrs:
-    let
-      formsOf = form: forms form (attrs.${form} or { });
-    in
     concatStringsSep "\n" (
-      lib.filter (x: x != "") (map formsOf [ "defvar" "setq" "setopt" ])
+      lib.filter (x: x != "") [
+        (forms defvarForm (attrs.defvar or { }))
+        (forms setqForm (attrs.setq or { }))
+        (forms setoptForm (attrs.setopt or { }))
+      ]
     );
 in
 {
