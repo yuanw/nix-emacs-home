@@ -203,6 +203,10 @@ let
   # a feature that calls `(vertico-mode 1)' breaks; requiring everything up
   # front is what makes bare calls work.  The `nil t' arguments keep a package
   # whose main file is named differently (or missing) from killing the init file.
+  #
+  # The `<package>-autoloads.el' of each package is loaded first, the way
+  # `package-initialize' would: a package like `corfu' defines
+  # `corfu-popupinfo-mode' in another file, which only its autoloads know about.
   requireForms =
     let
       # `trivialBuild'/'elpaBuild' packages carry the Elisp package name in
@@ -211,7 +215,13 @@ let
       nameOf = package: package.pName or package.pname or "";
       names = lib.unique (lib.filter (name: name != "" && name != "default") (map nameOf (epkgsOf emacsScope)));
     in
-    map (name: "(require '${name} nil t)") names;
+    map
+      (name:
+        ''
+          (load "${name}-autoloads" nil t)
+          (require '${name} nil t)''
+      )
+      names;
 
   # The generated init file travels as a package called `default', which is
   # what makes Emacs load it (see the note at the top of this file).
@@ -349,11 +359,12 @@ in
     requireEpkgs = (mkEnableOption "requireEpkgs") // {
       default = true;
       description = ''
-        Emit a `(require 'package nil t)' for every Emacs Lisp package the
+        Load the autoloads of, and `(require)', every Emacs Lisp package the
         enabled features ask for, before any feature configuration.
 
         A configured Emacs only puts its packages on the load path, so plain
-        Elisp such as `(vertico-mode 1)' only works once `vertico' is loaded.
+        Elisp such as `(vertico-mode 1)', or a mode defined in a package's second
+        file like `corfu-popupinfo-mode', only works once that package is loaded.
         Requiring everything up front lets feature files call package functions
         directly.  Set this to `false' once every feature requires what it uses,
         which starts Emacs faster.
