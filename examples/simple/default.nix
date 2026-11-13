@@ -29,6 +29,7 @@
     # can be extended here: list options such as `packages' merge.
     features.version-control.packages = [ pkgs.gh ];
     features.minor-mode-demo.elisp = ''
+      (require 'example-minor)
       (example-minor-mode 1)
     '';
     features.modal-editing.enable = false;
