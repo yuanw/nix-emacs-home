@@ -11,7 +11,13 @@ in
   # ../config.nix adds pkgs.git to this list.
   packages = [ pkgs.jq ];
 
-  defvar.test-alpha-var = thisFeature;
+  defvar = {
+    test-alpha-var = thisFeature;
+    test-alpha-documented = {
+      value = 1;
+      doc = "A variable with a docstring.";
+    };
+  };
   setq = {
     test-alpha-list = [ 1 "two" true ];
     test-helper = helper.helper-value;

@@ -63,6 +63,7 @@
 
     # Nix values as Emacs variables.
     (expect "defvar with feature name" (hasInfix "(defvar test-alpha-var \"alpha\")" init))
+    (expect "defvar docstring" (hasInfix "(defvar test-alpha-documented 1 \"A variable with a docstring.\")" init))
     (expect "setq list" (hasInfix "(setq test-alpha-list '(1 \"two\" t))" init))
     (expect "setopt runs :set" (hasInfix "(setopt test-alpha-option t)" init))
     (expect "setopt symbol" (hasInfix "(setopt test-alpha-symbol 'some-symbol)" init))

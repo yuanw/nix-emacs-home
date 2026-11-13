@@ -110,7 +110,7 @@ emacs.features.lsp.enable = false;
 | `packages` | Ordinary Home Manager packages: the external programs this feature's modes call. |
 | `elisp` | Elisp written inline in Nix. |
 | `elispFile` | Elisp in its own file. Both may be set; the file comes first. |
-| `defvar` | `(defvar NAME VALUE)` with a Nix value — variables your own Elisp reads. |
+| `defvar` | `(defvar NAME VALUE)` with a Nix value — variables your own Elisp reads. A value of `{ value = ...; doc = "..."; }` adds a docstring. |
 | `setq` | `(setq NAME VALUE)` with Nix values. |
 | `setopt` | `(setopt NAME VALUE)` — `defcustom`s; unlike `setq` this runs the option's `:set` function. |
 

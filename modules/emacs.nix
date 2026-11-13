@@ -258,6 +258,10 @@ let
     ;;; Code:
 
     ${concatStringsSep "\n" (map featureElisp sortedEnabledFeatures)}
+    ;; Local Variables:
+    ;; eval: (outline-minor-mode)
+    ;; End:
+
     (provide 'default)
 
     ;;; default.el ends here
