@@ -78,15 +78,16 @@ let
   forms = form: attrs: concatStringsSep "\n" (mapAttrsToList form attrs);
 
   # Variable definitions, in the order they should hit Emacs: define first,
-  # then assign plain variables, then user options.
+  # then assign plain variables, then user options.  Takes a set with `defvar',
+  # `setq' and `setopt' attributes (extra attributes, such as the rest of a
+  # feature's config, are ignored).
   variables =
-    { defvar ? { }, setq ? { }, setopt ? { } }:
+    attrs:
+    let
+      formsOf = form: forms form (attrs.${form} or { });
+    in
     concatStringsSep "\n" (
-      lib.filter (x: x != "") [
-        (forms defvarForm defvar)
-        (forms setqForm setq)
-        (forms setoptForm setopt)
-      ]
+      lib.filter (x: x != "") (map formsOf [ "defvar" "setq" "setopt" ])
     );
 in
 {
