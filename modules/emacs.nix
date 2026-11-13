@@ -485,4 +485,3 @@ in
     ++ plainFeatureModules
   );
 }
-}
