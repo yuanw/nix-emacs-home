@@ -218,7 +218,8 @@ let
     map
       (name:
         ''
-          (load "${name}-autoloads" nil t)
+          ;; `ignore-errors': not every package ships an autoloads file.
+          (ignore-errors (load "${name}-autoloads" nil t))
           (require '${name} nil t)''
       )
       names;
