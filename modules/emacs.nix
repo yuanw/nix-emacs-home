@@ -205,7 +205,11 @@ let
   # whose main file is named differently (or missing) from killing the init file.
   requireForms =
     let
-      names = lib.unique (lib.filter lib.isString (map (package: package.pName or package.packageName or "") (epkgsOf emacsScope)));
+      # `trivialBuild'/'elpaBuild' packages carry the Elisp package name in
+      # `pname' (`pName' in recent nixpkgs); the generated `default' package is
+      # the init file itself, so it is not required.
+      nameOf = package: package.pName or package.pname or "";
+      names = lib.unique (lib.filter (name: name != "" && name != "default") (map nameOf (epkgsOf emacsScope)));
     in
     map (name: "(require '${name} nil t)") names;
 
