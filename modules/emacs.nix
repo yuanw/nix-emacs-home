@@ -19,7 +19,7 @@ let
     composeManyExtensions
     concatMap
     concatStringsSep
-    getVal
+    getValues
     isFunction
     literalExpression
     mkEnableOption
@@ -47,14 +47,14 @@ let
     description = "function taking the Emacs package set and returning a list of packages";
     check = isFunction;
     merge =
-      _loc: defs: epkgs: concatMap (select: select epkgs) (map getVal defs);
+      _loc: defs: epkgs: concatMap (select: select epkgs) (getValues defs);
   };
 
   overlayFunction = mkOptionType {
     name = "overlay function";
     description = "Emacs package overlay, final: prev: { }";
     check = isFunction;
-    merge = _loc: defs: composeManyExtensions (map getVal defs);
+    merge = _loc: defs: composeManyExtensions (getValues defs);
   };
 
   variablesOption = description: mkOption {
