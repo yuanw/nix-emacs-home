@@ -86,7 +86,7 @@ let
         };
 
         order = mkOption {
-          type = types.ints.signed;
+          type = types.int;
           default = 0;
           description = ''
             Position of this feature in the generated init file.  Smaller comes
