@@ -21,9 +21,10 @@
   featureLib = import ../lib/features.nix { inherit lib; };
 
   # A feature file that mixes feature options with Home Manager options is a
-  # mistake, and must be reported as one.
+  # mistake, and must be reported as one.  The check is lazy, so force the
+  # feature values.
   mixedIsRejected = !(builtins.tryEval (
-    featureLib.collectFeatures { } [ ./bad-features/mixed.nix ]
+    lib.deepSeq (featureLib.collectFeatures { } [ ./bad-features/mixed.nix ]) true
   )).success;
 
   expect = name: condition: {
