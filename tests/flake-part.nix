@@ -41,6 +41,10 @@
       value = i;
     }) headingOrder
   );
+  # Length of the part of the init file before the first occurrence of a
+  # substring — a cheap position for comparing two pieces of Elisp.
+  prefixLength = needle: builtins.stringLength (builtins.head (lib.splitString needle init));
+  elispComesBefore = a: b: prefixLength a < prefixLength b;
   comesBefore = a: b: headingPosition.${a} < headingPosition.${b};
 
   expectations = [
@@ -49,7 +53,7 @@
     (expect "underscore file is not a feature" (!cfg.emacs.features ? _helper))
     (expect "feature elisp" (hasInfix "(message \"alpha elisp\")" init))
     (expect "sibling .el file" (hasInfix "beta from file" init))
-    (expect "elisp after sibling file" (comesBefore "beta from file" "beta inline"))
+    (expect "elisp after sibling file" (elispComesBefore "beta from file" "beta inline"))
     (expect "feature heading" (hasInfix ";;;; alpha" init))
 
     # Elisp declared in Nix rather than in a file.
