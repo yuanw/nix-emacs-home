@@ -106,6 +106,7 @@ emacs.features.lsp.enable = false;
 | `enable` | Turn the feature off without deleting the file. |
 | `order` | Position in the generated init file. Smaller first; use e.g. `-10000` for a prelude, `10000` for a postlude. |
 | `epkgs` | `epkgs: [ epkgs.magit ]` — Emacs Lisp packages, from the package set that already contains every feature's `overlay`. |
+| `requireEpkgs` | `false` to keep this feature's packages off the startup path: they stay on the load path and their `<package>-autoloads.el` is still loaded, but nothing is `(require)`d. Use it for a feature whose Elisp is all `use-package`. |
 | `overlay` | `final: prev: { ... }` — packages not in nixpkgs, or patched versions of the ones in it. |
 | `packages` | Ordinary Home Manager packages: the external programs this feature's modes call. |
 | `elisp` | Elisp written inline in Nix. |

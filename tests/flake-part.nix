@@ -81,6 +81,14 @@
         (expect "order puts the prelude first" (comesBefore "prelude" "alpha"))
         (expect "order puts the inline feature last" (comesBefore "alpha" "inline"))
 
+        # Which packages the init file loads at startup.
+        (expect "eager feature package is required" (hasInfix "(require 'undo-tree nil t)" init))
+        (expect "lazy feature package is not required" (!hasInfix "(require 'flycheck nil t)" init))
+        (expect "lazy feature package autoloads are loaded" (
+          hasInfix "(ignore-errors (load \"flycheck-autoloads\" nil t))" init
+        ))
+        (expect "lazy feature elisp is kept" (hasInfix "(message \"lazy elisp\")" init))
+
         # Disabled features contribute nothing.
         (expect "disabled feature has no elisp" (!hasInfix "gamma must not appear" init))
         (expect "disabled feature has no heading" (!hasInfix ";;;; gamma" init))

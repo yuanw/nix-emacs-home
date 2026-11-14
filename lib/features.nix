@@ -35,6 +35,7 @@ let
     "order"
     "overlay"
     "packages"
+    "requireEpkgs"
     "setq"
     "setopt"
   ];

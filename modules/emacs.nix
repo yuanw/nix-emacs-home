@@ -118,6 +118,19 @@ let
           '';
         };
 
+        requireEpkgs = (mkEnableOption "require this feature's packages at startup") // {
+          default = true;
+          description = ''
+            `(require)' this feature's `epkgs' before any feature configuration,
+            so its Elisp can call package functions directly.  Set it to
+            `false' for a feature whose Elisp defers everything to
+            `use-package' or to autoloaded commands: its packages stay on the
+            load path and their `<package>-autoloads.el' is still loaded, but
+            their code is not read at startup.  `emacs.requireEpkgs' is the
+            global switch for the same thing.
+          '';
+        };
+
         overlay = mkOption {
           type = overlayFunction;
           default = _final: _prev: { };
@@ -205,29 +218,39 @@ let
 
   epkgsOf = scope: concatMap (feature: feature.epkgs scope) sortedEnabledFeatures;
 
-  # `(require ...)' for every package the enabled features ask for.  A
-  # configured Emacs only puts its packages on the load path, so plain Elisp in
-  # a feature that calls `(vertico-mode 1)' breaks; requiring everything up
-  # front is what makes bare calls work.  The `nil t' arguments keep a package
-  # whose main file is named differently (or missing) from killing the init file.
-  #
-  # The `<package>-autoloads.el' of each package is loaded first, the way
-  # `package-initialize' would: a package like `corfu' defines
-  # `corfu-popupinfo-mode' in another file, which only its autoloads know about.
-  requireForms =
+  # The Elisp package names FEATURES asks for.  `trivialBuild'/'elpaBuild'
+  # packages carry the Elisp package name in `pname' (`pName' in recent
+  # nixpkgs); the generated `default' package is the init file itself, so it is
+  # never loaded here.
+  elispNamesOf =
+    features:
     let
-      # `trivialBuild'/'elpaBuild' packages carry the Elisp package name in
-      # `pname' (`pName' in recent nixpkgs); the generated `default' package is
-      # the init file itself, so it is not required.
       nameOf = package: package.pName or package.pname or "";
-      names = lib.unique (
-        lib.filter (name: name != "" && name != "default") (map nameOf (epkgsOf emacsScope))
-      );
     in
-    map (name: ''
-      ;; `ignore-errors': not every package ships an autoloads file.
-      (ignore-errors (load "${name}-autoloads" nil t))
-      (require '${name} nil t)'') names;
+    lib.unique (
+      lib.filter (name: name != "" && name != "default") (
+        map nameOf (concatMap (feature: feature.epkgs emacsScope) features)
+      )
+    );
+
+  # The `<package>-autoloads.el' of every package, the way `package-initialize'
+  # would: a package like `corfu' defines `corfu-popupinfo-mode' in another
+  # file, which only its autoloads know about, and a feature that skips the
+  # `require' below still has to be able to autoload its commands.
+  # `ignore-errors': not every package ships an autoloads file.
+  autoloadForms = map (name: ''(ignore-errors (load "${name}-autoloads" nil t))'') (
+    elispNamesOf sortedEnabledFeatures
+  );
+
+  # `(require ...)' for the packages of the features that asked to be loaded at
+  # startup.  A configured Emacs only puts its packages on the load path, so
+  # plain Elisp in a feature that calls `(vertico-mode 1)' needs this; a feature
+  # that is all `use-package' can opt out and stay off the startup path.  The
+  # `nil t' arguments keep a package whose main file is named differently (or
+  # missing) from killing the init file.
+  requireForms = map (name: "(require '${name} nil t)") (
+    elispNamesOf (lib.filter (feature: feature.requireEpkgs) sortedEnabledFeatures)
+  );
 
   # The generated init file travels as a package called `default', which is
   # what makes Emacs load it (see the note at the top of this file).
@@ -283,7 +306,7 @@ let
 
     ;;; Code:
 
-    ${lib.optionalString (cfg.requireEpkgs && requireForms != [ ]) (concatStringsSep "\n" requireForms)}
+    ${lib.optionalString cfg.requireEpkgs (concatStringsSep "\n" (autoloadForms ++ requireForms))}
 
     ${concatStringsSep "\n" (map featureElisp sortedEnabledFeatures)}
     ;; Local Variables:
@@ -372,7 +395,8 @@ in
         file like `corfu-popupinfo-mode', only works once that package is loaded.
         Requiring everything up front lets feature files call package functions
         directly.  Set this to `false' once every feature requires what it uses,
-        which starts Emacs faster.
+        which starts Emacs faster; `emacs.features.<name>.requireEpkgs' opts out
+        one feature at a time.
       '';
     };
 
